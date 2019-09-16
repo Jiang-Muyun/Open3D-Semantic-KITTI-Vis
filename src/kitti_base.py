@@ -296,7 +296,7 @@ class Semantic_KITTI_Utils():
 
         return pcd,sem_label
 
-    def cvt_pcd(self,pcd):
+    def cvt_pcd(self,pcd, in_view_constraints=True):
         """ 
             Convert open3d.geometry.PointCloud object to [4, N] array
                         [x_1 , x_2 , .. ]
@@ -306,6 +306,11 @@ class Semantic_KITTI_Utils():
         """
         # The [N,3] downsampled array
         pts_3d = np.asarray(pcd.points)
+
+        if in_view_constraints:
+            h_points = self.hv_in_range(pts_3d[:,0], pts_3d[:,1], [-90,90], fov_type='h')
+            pts_3d = pts_3d[h_points]
+
         # Create a [N,1] array
         one_mat = np.ones((pts_3d.shape[0], 1),dtype=np.float64)
         # Concat and change shape from [N,4] to [4,N]
@@ -315,6 +320,7 @@ class Semantic_KITTI_Utils():
     def project_3d_points(self, pcd):
         # convert open3d.geometry.PointCloud object to [4, N] array
         xyz_v = self.cvt_pcd(pcd)
+
         assert xyz_v.shape[0] == 4, xyz_v.shape
 
         # convert velodyne coordinates(X_v, Y_v, Z_v) to camera coordinates(X_c, Y_c, Z_c)
@@ -343,12 +349,12 @@ class Semantic_KITTI_Utils():
         xy_i = xyz_c[::] / xyz_c[::][2]
         pts_2d = np.delete(xy_i, 2, axis=0)
 
-        points = np.asarray(pcd.points)
+        points = xyz_v[:3].T
         x, y, z = points[:, 0], points[:, 1], points[:, 2]
         d = np.sqrt(x ** 2 + y ** 2 + z ** 2) # this is much faster than d = np.sqrt(np.power(points,2).sum(1))
         color = self.normalize_data(d, min=1, max=70, scale=120, clip=True)
 
-        return pts_2d, color
+        return pts_2d.T, color
 
     def normalize_data(self, val, min, max, scale, depth=False, clip=False):
         """ Return normalized data """

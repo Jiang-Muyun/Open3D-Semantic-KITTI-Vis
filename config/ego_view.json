@@ -1,4 +1,16 @@
 {
+    "h_fov": [
+        -40,
+        40
+    ],
+    "v_fov": [
+        -25,
+        2.0
+    ],
+    "x_range": null,
+    "y_range": null,
+    "z_range": null,
+    "d_range": null,
     "class_name": "PinholeCameraParameters",
     "extrinsic": [
         0.07238039860232912,
@@ -34,17 +46,5 @@
         "width": 800
     },
     "version_major": 1,
-    "version_minor": 0,
-    "h_fov": [
-        -40,
-        40
-    ],
-    "v_fov": [
-        -25,
-        2.0
-    ],
-    "x_range": null,
-    "y_range": null,
-    "z_range": null,
-    "d_range": null
+    "version_minor": 0
 }

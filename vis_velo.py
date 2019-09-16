@@ -46,9 +46,10 @@ if __name__ == "__main__":
         pcd,sem_label = handle.extract_points(voxel_size = 0.1)
 
         vis_handle.update(pcd)
-        print('n_pts',np.asarray(pcd.points).shape[0])
+        # vis_handle.capture_screen('tmp/capture_screen.jpg')
+        # print('n_pts',np.asarray(pcd.points).shape[0])
 
         pts_2d, c_hsv = handle.project_3d_points(pcd)
-        cv2.imshow('projection result', print_projection_cv2(pts_2d.T, c_hsv, handle.frame))
+        cv2.imshow('projection result', print_projection_cv2(pts_2d, c_hsv, handle.frame))
         if 32 == cv2.waitKey(1):
             break

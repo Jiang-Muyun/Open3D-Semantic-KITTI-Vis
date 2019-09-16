@@ -11,10 +11,9 @@
 Download Semantic KITTI label file from [http://semantic-kitti.org/assets/data_odometry_labels.zip] and unzip it along with KITTI odometry dataset [http://www.cvlibs.net/datasets/kitti/eval_odometry.php].
 
 ```bash
-conda create --name open3d python=3.6
-conda activate open3d
 conda install -c open3d-admin open3d
-git clone https://github.com/Jiang-Muyun/Open3D-Semantic-KITTI-vis.git
+git clone https://github.com/Jiang-Muyun/Open3D-Semantic-KITTI-Vis.git
+cd Open3D-Semantic-KITTI-Vis
 pip install -r requirements.txt
 ```
 
@@ -26,3 +25,5 @@ python vis_velo.py --cfg config/top_view.json --root PATH_TO_KITTI/odometry/data
 ```
 
 <img src="assets/semantic-kitti.jpg">
+
+<img src="assets/velo_top.jpg">
