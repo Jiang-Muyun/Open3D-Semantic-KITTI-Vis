@@ -1,0 +1,5 @@
+tqdm
+numpy
+pillow
+opencv-python
+open3d>=0.8.0.0
