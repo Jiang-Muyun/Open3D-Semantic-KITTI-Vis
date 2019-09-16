@@ -14,7 +14,7 @@ Download Semantic KITTI label file from [http://semantic-kitti.org/assets/data_o
 conda create --name open3d python=3.6
 conda activate open3d
 conda install -c open3d-admin open3d
-git clone https://github.com/
+git clone https://github.com/Jiang-Muyun/Open3D-Semantic-KITTI-vis.git
 pip install -r requirements.txt
 ```
 
