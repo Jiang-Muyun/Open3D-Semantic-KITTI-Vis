@@ -46,5 +46,8 @@
     "x_range": null,
     "y_range": null,
     "z_range": null,
-    "d_range": null
+    "d_range": [
+        0,
+        50
+    ]
 }
