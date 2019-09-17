@@ -24,18 +24,15 @@ python vis_velo.py --cfg config/ego_view.json --root PATH_TO_KITTI/odometry/data
 python vis_velo.py --cfg config/top_view.json --root PATH_TO_KITTI/odometry/dataset/
 ```
 
-Create a new view
+Create a new view from existing ones and modify the viewing angle.
 
 ```bash
-python vis_velo.py --cfg config/new_view.json --root PATH_TO_KITTI/odometry/dataset/
+cp config/ego_view.json config/new_view.json
+
+# Press [Q] to save the view
+# Then you can modify the FOV and range filter arguments in new_view.json
+python vis_velo.py --cfg config/new_view.json --root PATH_TO_KITTI/odometry/dataset/ --modify
 ```
-
-Modified en existing view
-
-```bash
-python vis_velo.py --cfg config/top_view.json --modify --root PATH_TO_KITTI/odometry/dataset/
-```
-
 
 <img src="assets/ego_view.jpg" width="600">
 <img src="assets/frame_semantic.jpg" width="600">

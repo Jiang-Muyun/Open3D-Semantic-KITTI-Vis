@@ -40,26 +40,6 @@ def calib_cam2cam(fn_c2c, mode = '02'):
             P = P[:3, :3]  # erase 4th column ([0,0,0])
     return P
 
-cfg_template = {
-    "h_fov":[-40, 40],
-    "v_fov":[-25, 2.0],
-    "x_range": None,
-    "y_range": None,
-    "z_range": None,
-    "d_range": None,
-    "class_name": "PinholeCameraParameters",
-    "version_major": 1,
-    "version_minor": 0,
-    "extrinsic": 
-        [0.9957216461094273,0.0021923177689312026,0.09237747134411402,0.0,-0.09216825089269272,-0.04772462536762007,0.9945991019807439,0.0,
-        0.006589157496541302,-0.9988581249989011,-0.04731838043683903,0.0,4.5214514284776115,2.791922931313028,112.96160194201362,1.0],
-    "intrinsic": {
-        "width": 800,
-        "height": 800,
-        "intrinsic_matrix": [692.820323027551,0.0,0.0,0.0,692.820323027551,0.0,599.5,399.5,1.0],
-    },
-}
-
 class PointCloud_Vis():
     def __init__(self,cfg, new_config = False, width = 800, height = 800):
         self.vis = open3d.visualization.VisualizerWithKeyCallback()
@@ -68,20 +48,15 @@ class PointCloud_Vis():
         self.cfg = cfg
 
         self.new_config = new_config
-        if not os.path.exists(self.cfg):
-            print('[Warn] The config file [%s] does not exist'%(self.cfg))
-            print('Crearing a new config file from top_view.json')
-            json.dump(cfg_template, open(self.cfg,'w'))
-        else:
-            print('Load config file [%s]'%(self.cfg))
-            # Modify json file or there will be errors when we change window size
-            data = json.load(open(self.cfg,'r'))
-            data['intrinsic']['width'] = width
-            data['intrinsic']['height'] = height
-            data['intrinsic']['intrinsic_matrix'][6] = (width-1)/2
-            data['intrinsic']['intrinsic_matrix'][7] = (height-1)/2
-            json.dump(data, open(self.cfg,'w'),indent=4)
-            self.param = open3d.io.read_pinhole_camera_parameters(self.cfg)
+        # Modify json file or there will be errors when we change window size
+        print('Load config file [%s]'%(self.cfg))
+        data = json.load(open(self.cfg,'r'))
+        data['intrinsic']['width'] = width
+        data['intrinsic']['height'] = height
+        data['intrinsic']['intrinsic_matrix'][6] = (width-1)/2
+        data['intrinsic']['intrinsic_matrix'][7] = (height-1)/2
+        json.dump(data, open(self.cfg,'w'),indent=4)
+        self.param = open3d.io.read_pinhole_camera_parameters(self.cfg)
 
         self.pcd = open3d.geometry.PointCloud()
         self.vis.add_geometry(self.pcd)
@@ -120,7 +95,7 @@ class PointCloud_Vis():
             cfg['d_range'] = data['d_range']
             json.dump(cfg, open(self.cfg,'w'),indent=4)
 
-            print('Saved Please restart using [%s]' % self.cfg)
+            print('Saved. Please restart using [%s]' % self.cfg)
             exit()
 
     def capture_screen(self,fn, depth = False):
@@ -130,18 +105,21 @@ class PointCloud_Vis():
             self.vis.capture_screen_image(fn, False)
 
 class Semantic_KITTI_Utils():
-    def __init__(self,sequence_root):
-        self.sequence_root = sequence_root
-        self.index = 0
+    def __init__(self, root):
+        self.root = root
         self.load()
+
+    def start(self, part='00', index=0):
+        self.sequence_root = os.path.join(self.root, 'sequences/%s/'%(part))
+        self.index = index
 
     def load(self):
         # R_vc = Rotation matrix ( velodyne -> camera )
         # T_vc = Translation matrix ( velodyne -> camera )
-        self.R_vc, self.T_vc = calib_velo2cam('calib/calib_velo_to_cam.txt')
+        self.R_vc, self.T_vc = calib_velo2cam('config/calib_velo_to_cam.txt')
 
         # P_ = Projection matrix ( camera coordinates 3d points -> image plane 2d points )
-        self.P_ = calib_cam2cam('calib/calib_cam_to_cam.txt' ,mode="02")
+        self.P_ = calib_cam2cam('config/calib_cam_to_cam.txt' ,mode="02")
 
         # RT_ - rotation matrix & translation matrix ( velodyne coordinates -> camera coordinates )
         #         [r_11 , r_12 , r_13 , t_x ]
@@ -150,23 +128,19 @@ class Semantic_KITTI_Utils():
         self.RT_ = np.concatenate((self.R_vc, self.T_vc), axis=1)
 
         self.sem_cfg = yaml.load(open('config/semantic-kitti.yaml','r'), Loader=yaml.SafeLoader)
-        self.sem_class_names = self.sem_cfg['labels']
-        self.sem_learning_map = self.sem_cfg['learning_map']
-        self.sem_learning_map_inv = self.sem_cfg['learning_map_inv']
-        self.sem_learning_ignore = self.sem_cfg['learning_ignore']
+        self.class_names = self.sem_cfg['labels']
+        self.learning_map = self.sem_cfg['learning_map']
+        self.learning_map_inv = self.sem_cfg['learning_map_inv']
+        self.learning_ignore = self.sem_cfg['learning_ignore']
+        self.sem_color_map = self.sem_cfg['color_map']
 
-        color_map = self.sem_cfg['color_map']
-        sem_color_list = []
-        for i in range(0,260):
-            if i in color_map.keys():
-                color = color_map[i]
-                # sem_color_list.append([color[-1], color[0], color[1]])
-                sem_color_list.append(color)
-            else:
-                sem_color_list.append([0,0,0])
-        self.sem_color_map = np.array(sem_color_list,dtype=np.uint8)
+        self.kitti_color_map = [[0,0,0], [128, 64, 128], [244, 35, 232], [70, 70, 70], [102, 102, 156], [190, 153, 153],
+                        [153, 153, 153], [250, 170, 30], [220, 220, 0],[107, 142, 35], [152, 251, 152], [0, 130, 180],
+                        [220, 20, 60], [255, 0, 0], [0, 0, 142], [0, 0, 70], [0, 60, 100], [0, 80, 100], [0, 0, 230],[119, 11, 32]]
 
     def next(self):
+        """  Load the frame, point cloud and semantic labels from file """
+
         fn_frame = os.path.join(self.sequence_root, 'image_2/%06d.png' % (self.index))
         fn_velo = os.path.join(self.sequence_root, 'velodyne/%06d.bin' %(self.index))
         fn_label = os.path.join(self.sequence_root, 'labels/%06d.label' %(self.index))
@@ -180,6 +154,9 @@ class Semantic_KITTI_Utils():
             return False
 
         self.frame = cv2.imread(fn_frame)
+        if self.frame is None:
+            print('File could not be read',fn_frame)
+            
         self.points = np.fromfile(fn_velo, dtype=np.float32).reshape(-1, 4)[:,:3]
         self.n_pts = self.points.shape[0]
         label = np.fromfile(fn_label, dtype=np.uint32).reshape((-1))
@@ -204,6 +181,9 @@ class Semantic_KITTI_Utils():
         self.y_range = y_range if y_range is not None else (-10000, 10000)
         self.z_range = z_range if z_range is not None else (-10000, 10000)
         self.d_range = d_range if d_range is not None else (-10000, 10000)
+
+        self.min_bound = [self.x_range[0], self.y_range[0], self.z_range[0]]
+        self.max_bound = [self.x_range[1], self.y_range[1], self.z_range[1]]
 
     def hv_in_range(self, m, n, fov, fov_type='h'):
         """ extract filtered in-range velodyne coordinates based on azimuth & elevation angle limit 
@@ -251,12 +231,11 @@ class Semantic_KITTI_Utils():
         return combined
 
     def extract_points(self,voxel_size = -1, every_k_points = 0):
-        """ extract points corresponding to FOV setting """
-
         # filter in range points based on fov, x,y,z range setting
         combined = self.points_basic_filter(self.points)
         pts = self.points[combined]
         sem_label = self.sem_label[combined]
+
         fake_color = np.repeat(sem_label.reshape((-1,1)),3,axis=1).astype(np.float64)
 
         pcd = open3d.geometry.PointCloud()
@@ -264,13 +243,15 @@ class Semantic_KITTI_Utils():
         pcd.colors = open3d.utility.Vector3dVector(fake_color)
 
         if voxel_size > 0:
-            pcd = pcd.voxel_down_sample(voxel_size)
+            # approximate_class must be set to true
+            # see this issue for more info https://github.com/intel-isl/Open3D/issues/1085
+            pcd,trace = pcd.voxel_down_sample_and_trace(voxel_size,self.min_bound,self.max_bound,approximate_class=True)
         
         if every_k_points > 0 :
             pcd = pcd.uniform_down_sample(every_k_points)
 
         sem_label = np.asarray(pcd.colors)[:,0].astype(np.int32)
-        colors = self.sem_color_map[sem_label]
+        colors = np.array([self.sem_color_map[x] for x in sem_label])
         pcd.colors = open3d.utility.Vector3dVector(colors/255.0)
 
         return pcd,sem_label
@@ -287,7 +268,7 @@ class Semantic_KITTI_Utils():
         pts_3d = np.asarray(pcd.points)
 
         if in_view_constraints:
-            h_points = self.hv_in_range(pts_3d[:,0], pts_3d[:,1], [-45,45], fov_type='h')
+            h_points = self.hv_in_range(pts_3d[:,0], pts_3d[:,1], [-50,50], fov_type='h')
             pts_3d = pts_3d[h_points]
             sem_label = sem_label[h_points]
 
@@ -355,11 +336,34 @@ class Semantic_KITTI_Utils():
         """ draw 2d points in camera image """
         assert pts_2d.shape[1] == 2, pts_2d.shape
         assert pts_2d.shape[0] == sem_label.shape[0], str(pts_2d.shape) + ' '+  str(sem_label.shape)
+
         image = self.frame.copy()
         pts_2d = pts_2d.astype(np.int32).tolist()
-        colors = self.sem_color_map[sem_label].tolist()
+        colors = [self.sem_color_map[x] for x in sem_label.tolist()]
 
         for (x,y),c in zip(pts_2d,colors):
             cv2.circle(image, (x, y), 2, c, -1)
-            
         return image
+
+    def draw_2d_sem_points_with_learning_mapping(self, pts_2d, sem_label_learn):
+        """ draw 2d points in camera image """
+        assert pts_2d.shape[1] == 2, pts_2d.shape
+        assert pts_2d.shape[0] == sem_label_learn.shape[0], str(pts_2d.shape) + ' '+  str(sem_label_learn.shape)
+        
+        image = self.frame.copy()
+        pts_2d = pts_2d.astype(np.int32).tolist()
+        colors = [self.kitti_color_map[x] for x in sem_label_learn.tolist()]
+
+        for (x,y),c in zip(pts_2d,colors):
+            cv2.circle(image, (x, y), 2, c, -1)
+        return image
+
+    def learning_mapping(self,sem_label):
+        sem_label_learn = [self.learning_map[x] for x in sem_label]
+        sem_label_learn = np.array(sem_label_learn, dtype=np.uint8)
+        return sem_label_learn
+
+    def inv_learning_mapping(self,sem_label_learn):
+        sem_label = [self.learning_map_inv[x] for x in sem_label_learn]
+        sem_label = np.array(sem_label, dtype=np.uint16)
+        return sem_label
