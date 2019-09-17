@@ -7,7 +7,7 @@ import cv2
 import argparse
 import json
 
-from src.kitti_base import PointCloud_Vis, Semantic_KITTI_Utils, print_projection_cv2
+from src.kitti_base import PointCloud_Vis, Semantic_KITTI_Utils
 
 def init_params():
     parser = argparse.ArgumentParser('vis_velo.py')
@@ -41,15 +41,22 @@ def init_params():
 
 if __name__ == "__main__":
     handle, vis_handle = init_params()
-
+    handle.index = 70
     while handle.next():
         pcd,sem_label = handle.extract_points(voxel_size = 0.1)
 
         vis_handle.update(pcd)
-        # vis_handle.capture_screen('tmp/capture_screen.jpg')
-        # print('n_pts',np.asarray(pcd.points).shape[0])
+        print('n_pts',np.asarray(pcd.points).shape[0], sem_label.shape)
 
-        pts_2d, c_hsv = handle.project_3d_points(pcd)
-        cv2.imshow('projection result', print_projection_cv2(pts_2d, c_hsv, handle.frame))
+        pts_2d, color, sem_label = handle.project_3d_to_2d(pcd, sem_label)
+        frame_depth = handle.draw_2d_points(pts_2d, color)
+        frame_semantic = handle.draw_2d_sem_points(pts_2d, sem_label)
+
+        # vis_handle.capture_screen('tmp/top_view.jpg')
+        # cv2.imwrite('tmp/frame_depth.jpg',frame_depth)
+        # cv2.imwrite('tmp/frame_semantic.jpg',frame_semantic)
+
+        cv2.imshow('depth', frame_depth)
+        cv2.imshow('semantic', frame_semantic)
         if 32 == cv2.waitKey(1):
             break

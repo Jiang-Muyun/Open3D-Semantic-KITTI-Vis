@@ -24,6 +24,20 @@ python vis_velo.py --cfg config/ego_view.json --root PATH_TO_KITTI/odometry/data
 python vis_velo.py --cfg config/top_view.json --root PATH_TO_KITTI/odometry/dataset/
 ```
 
-<img src="assets/semantic-kitti.jpg">
+Create a new view
 
-<img src="assets/velo_top.jpg">
+```bash
+python vis_velo.py --cfg config/new_view.json --root PATH_TO_KITTI/odometry/dataset/
+```
+
+Modified en existing view
+
+```bash
+python vis_velo.py --cfg config/top_view.json --modify --root PATH_TO_KITTI/odometry/dataset/
+```
+
+
+<img src="assets/ego_view.jpg" width="600">
+<img src="assets/frame_semantic.jpg" width="600">
+<img src="assets/frame_depth.jpg" width="600">
+<img src="assets/top_view.jpg" width="600">

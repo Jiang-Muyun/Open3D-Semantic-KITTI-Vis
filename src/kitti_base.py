@@ -7,31 +7,7 @@ import glob
 import cv2
 import shutil
 import yaml
-
-def print_projection_cv2(points, color, image):
-    """ project converted velodyne points into camera image """
-    assert points.shape[1] == 2, points.shape
-
-    hsv_image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
-    points = points.astype(np.int32).tolist()
-    color = color.astype(np.int32).tolist()
-
-    for (x,y),c in zip(points,color):
-        if x < 0 or y <0 or x >= hsv_image.shape[1] or y >= hsv_image.shape[0]:
-            continue
-        cv2.circle(hsv_image, (x, y), 2, (c, 255, 255), -1)
-        # cv2.rectangle(hsv_image,(x-1,y-1),(x+1,y+1),(c,255,255),-1)
-
-    return cv2.cvtColor(hsv_image, cv2.COLOR_HSV2BGR)
-
-def print_projection_plt(points, color, image):
-    """ project converted velodyne points into camera image """
-    hsv_image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
-
-    for i in range(points.shape[1]):
-        cv2.circle(hsv_image, (int(points[0][i]), int(points[1][i])), 2, (int(color[i]), 255, 255), -1)
-
-    return cv2.cvtColor(hsv_image, cv2.COLOR_HSV2RGB)
+import colorsys
 
 def calib_velo2cam(fn_v2c):
     """
@@ -128,19 +104,21 @@ class PointCloud_Vis():
             print('Move the frame to the place you want')
             print('---Press [Q] to save---')
             self.vis.run()
+            data = json.load(open(self.cfg,'r'))
+
             self.param = self.vis.get_view_control().convert_to_pinhole_camera_parameters()
             open3d.io.write_pinhole_camera_parameters(self.cfg,self.param)
             self.new_config = False
 
             # add our own parameters
-            data = json.load(open(self.cfg,'r'))
-            data['h_fov'] = cfg_template['h_fov']
-            data['v_fov'] = cfg_template['v_fov']
-            data['x_range'] = cfg_template['x_range']
-            data['y_range'] = cfg_template['y_range']
-            data['z_range'] = cfg_template['z_range']
-            data['d_range'] = cfg_template['d_range']
-            json.dump(data, open(self.cfg,'w'),indent=4)
+            cfg = json.load(open(self.cfg,'r'))
+            cfg['h_fov'] = data['h_fov']
+            cfg['v_fov'] = data['v_fov']
+            cfg['x_range'] = data['x_range']
+            cfg['y_range'] = data['y_range']
+            cfg['z_range'] = data['z_range']
+            cfg['d_range'] = data['d_range']
+            json.dump(cfg, open(self.cfg,'w'),indent=4)
 
             print('Saved Please restart using [%s]' % self.cfg)
             exit()
@@ -182,7 +160,8 @@ class Semantic_KITTI_Utils():
         for i in range(0,260):
             if i in color_map.keys():
                 color = color_map[i]
-                sem_color_list.append([color[-1], color[1], color[0]])
+                # sem_color_list.append([color[-1], color[0], color[1]])
+                sem_color_list.append(color)
             else:
                 sem_color_list.append([0,0,0])
         self.sem_color_map = np.array(sem_color_list,dtype=np.uint8)
@@ -278,7 +257,7 @@ class Semantic_KITTI_Utils():
         combined = self.points_basic_filter(self.points)
         pts = self.points[combined]
         sem_label = self.sem_label[combined]
-        fake_color = np.repeat(sem_label.reshape((-1,1)),3,axis=1).astype(np.float32)
+        fake_color = np.repeat(sem_label.reshape((-1,1)),3,axis=1).astype(np.float64)
 
         pcd = open3d.geometry.PointCloud()
         pcd.points = open3d.utility.Vector3dVector(pts)
@@ -290,13 +269,13 @@ class Semantic_KITTI_Utils():
         if every_k_points > 0 :
             pcd = pcd.uniform_down_sample(every_k_points)
 
-        sem_label = np.asarray(pcd.colors)[:,0].astype(np.uint16)
+        sem_label = np.asarray(pcd.colors)[:,0].astype(np.int32)
         colors = self.sem_color_map[sem_label]
-        pcd.colors = open3d.utility.Vector3dVector(colors)
+        pcd.colors = open3d.utility.Vector3dVector(colors/255.0)
 
         return pcd,sem_label
 
-    def cvt_pcd(self,pcd, in_view_constraints=True):
+    def cvt_pcd(self,pcd, sem_label,in_view_constraints=True):
         """ 
             Convert open3d.geometry.PointCloud object to [4, N] array
                         [x_1 , x_2 , .. ]
@@ -308,18 +287,19 @@ class Semantic_KITTI_Utils():
         pts_3d = np.asarray(pcd.points)
 
         if in_view_constraints:
-            h_points = self.hv_in_range(pts_3d[:,0], pts_3d[:,1], [-90,90], fov_type='h')
+            h_points = self.hv_in_range(pts_3d[:,0], pts_3d[:,1], [-45,45], fov_type='h')
             pts_3d = pts_3d[h_points]
+            sem_label = sem_label[h_points]
 
         # Create a [N,1] array
         one_mat = np.ones((pts_3d.shape[0], 1),dtype=np.float64)
         # Concat and change shape from [N,4] to [4,N]
         xyz_v = np.concatenate((pts_3d, one_mat), axis=1).T
-        return xyz_v
+        return xyz_v, sem_label
 
-    def project_3d_points(self, pcd):
+    def project_3d_to_2d(self, pcd, sem_label):
         # convert open3d.geometry.PointCloud object to [4, N] array
-        xyz_v = self.cvt_pcd(pcd)
+        xyz_v,sem_label = self.cvt_pcd(pcd,sem_label)
 
         assert xyz_v.shape[0] == 4, xyz_v.shape
 
@@ -347,29 +327,39 @@ class Semantic_KITTI_Utils():
                     [  s_1   ,   s_2   , .. ]                [y_1 , y_2 , .. ]
         """
         xy_i = xyz_c[::] / xyz_c[::][2]
-        pts_2d = np.delete(xy_i, 2, axis=0)
+        pts = np.delete(xy_i, 2, axis=0)
+        pts_2d = pts.T
+        assert pts_2d.shape[1] == 2
 
         points = xyz_v[:3].T
         x, y, z = points[:, 0], points[:, 1], points[:, 2]
-        d = np.sqrt(x ** 2 + y ** 2 + z ** 2) # this is much faster than d = np.sqrt(np.power(points,2).sum(1))
-        color = self.normalize_data(d, min=1, max=70, scale=120, clip=True)
+        d = np.sqrt(x ** 2 + y ** 2 + z ** 2)
+        d_normalize = (d - d.min()) / (d.max() - d.min())
+        color = [[int(x*255) for x in colorsys.hsv_to_rgb(hue,1,1)] for hue in d_normalize]
 
-        return pts_2d.T, color
+        return pts_2d, color, sem_label
 
-    def normalize_data(self, val, min, max, scale, depth=False, clip=False):
-        """ Return normalized data """
-        if clip:
-            # limit the values in an array
-            np.clip(val, min, max, out=val)
-        if depth:
-            """
-            print 'normalized depth value'
-            normalize values to (0 - scale) & close distance value has high value. (similar to stereo vision's disparity map)
-            """
-            return (((max - val) / (max - min)) * scale).astype(np.uint8)
-        else:
-            """
-            print 'normalized value'
-            normalize values to (0 - scale) & close distance value has low value.
-            """
-            return (((val - min) / (max - min)) * scale).astype(np.uint8)
+    def draw_2d_points(self, pts_2d, color):
+        """ draw 2d points in camera image """
+        assert pts_2d.shape[1] == 2, pts_2d.shape
+
+        image = self.frame.copy()
+        pts_2d = pts_2d.astype(np.int32).tolist()
+
+        for (x,y),c in zip(pts_2d,color):
+            cv2.circle(image, (x, y), 2, c, -1)
+            
+        return image
+
+    def draw_2d_sem_points(self, pts_2d, sem_label):
+        """ draw 2d points in camera image """
+        assert pts_2d.shape[1] == 2, pts_2d.shape
+        assert pts_2d.shape[0] == sem_label.shape[0], str(pts_2d.shape) + ' '+  str(sem_label.shape)
+        image = self.frame.copy()
+        pts_2d = pts_2d.astype(np.int32).tolist()
+        colors = self.sem_color_map[sem_label].tolist()
+
+        for (x,y),c in zip(pts_2d,colors):
+            cv2.circle(image, (x, y), 2, c, -1)
+            
+        return image
