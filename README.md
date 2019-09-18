@@ -20,18 +20,19 @@ pip install -r requirements.txt
 ## Run
 
 ```bash
-python vis_velo.py --cfg config/ego_view.json --root PATH_TO_KITTI/odometry/dataset/
-python vis_velo.py --cfg config/top_view.json --root PATH_TO_KITTI/odometry/dataset/
+export KITTI_ROOT=PATH_TO_KITTI/odometry/dataset/
+python vis_velo.py --cfg config/ego_view.json --voxel 0.1
+python vis_velo.py --cfg config/top_view.json --voxel 0.1
 ```
 
 Create a new view from existing ones and modify the viewing angle.
 
 ```bash
+export KITTI_ROOT=PATH_TO_KITTI/odometry/dataset/
 cp config/ego_view.json config/new_view.json
-
 # Press [Q] to save the view
 # Then you can modify the FOV and range filter arguments in new_view.json
-python vis_velo.py --cfg config/new_view.json --root PATH_TO_KITTI/odometry/dataset/ --modify
+python vis_velo.py --cfg config/new_view.json --voxel 0.1 --modify
 ```
 
 <img src="assets/ego_view.jpg" width="600">

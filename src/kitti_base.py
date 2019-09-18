@@ -107,13 +107,23 @@ class PointCloud_Vis():
 class Semantic_KITTI_Utils():
     def __init__(self, root):
         self.root = root
-        self.load()
+        self.init()
 
-    def start(self, part='00', index=0):
+    def set_part(self, part='00'):
+        length = {
+            '00': 4540,'01':1100,'02':4660,'03':800,'04':270,'05':2760,
+            '06':1100,'07':1100,'08':4070,'09':1590,'10':1200
+        }
+        assert part in length.keys(), 'Only %s are supported' %(length.keys())
         self.sequence_root = os.path.join(self.root, 'sequences/%s/'%(part))
-        self.index = index
+        self.index = 0
+        self.max_index = length[part]
+        return self.max_index
+    
+    def get_max_index(self):
+        return self.max_index
 
-    def load(self):
+    def init(self):
         # R_vc = Rotation matrix ( velodyne -> camera )
         # T_vc = Translation matrix ( velodyne -> camera )
         self.R_vc, self.T_vc = calib_velo2cam('config/calib_velo_to_cam.txt')
@@ -138,24 +148,24 @@ class Semantic_KITTI_Utils():
                         [153, 153, 153], [250, 170, 30], [220, 220, 0],[107, 142, 35], [152, 251, 152], [0, 130, 180],
                         [220, 20, 60], [255, 0, 0], [0, 0, 142], [0, 0, 70], [0, 60, 100], [0, 80, 100], [0, 0, 230],[119, 11, 32]]
 
-    def next(self):
+    def load(self,index = None):
         """  Load the frame, point cloud and semantic labels from file """
+
+        self.index = index
+        if self.index == self.max_index:
+            print('End of sequence')
+            return False
 
         fn_frame = os.path.join(self.sequence_root, 'image_2/%06d.png' % (self.index))
         fn_velo = os.path.join(self.sequence_root, 'velodyne/%06d.bin' %(self.index))
         fn_label = os.path.join(self.sequence_root, 'labels/%06d.label' %(self.index))
 
-        if not os.path.exists(fn_frame) or not os.path.exists(fn_velo):
-            print('End of sequence')
-            return False
-        
-        if not os.path.exists(fn_label):
-            print('Semantic KITTI label file not found')
-            return False
+        assert os.path.exists(fn_frame), 'Broken dataset %s' % (fn_frame)
+        assert os.path.exists(fn_velo), 'Broken dataset %s' % (fn_velo)
+        assert os.path.exists(fn_label), 'Broken dataset %s' % (fn_label)
 
         self.frame = cv2.imread(fn_frame)
-        if self.frame is None:
-            print('File could not be read',fn_frame)
+        assert self.frame is not None, 'Broken dataset %s' % (fn_frame)
             
         self.points = np.fromfile(fn_velo, dtype=np.float32).reshape(-1, 4)[:,:3]
         self.n_pts = self.points.shape[0]
@@ -170,7 +180,6 @@ class Semantic_KITTI_Utils():
             print("Label shape: ", label.shape)
             raise ValueError("Scan and Label don't contain same number of points")
 
-        self.index += 1
         return True
     
     def set_filter(self, h_fov, v_fov, x_range = None, y_range = None, z_range = None, d_range = None):

@@ -12,11 +12,11 @@ from src.kitti_base import PointCloud_Vis, Semantic_KITTI_Utils
 def init_params():
     parser = argparse.ArgumentParser('vis_velo.py')
     parser.add_argument('--cfg', default = 'config/ego_view.json', type=str)
-    parser.add_argument('--root', default='/media/james/MyPassport/James/dataset/KITTI/odometry/dataset/', type=str)
-    parser.add_argument('--part', default='00', type=str , help='KITTI part number')
-    parser.add_argument('--index', default=0, type=int, help='start index')
-    parser.add_argument('--voxel', default=0.1, type=float, help='voxel size for down sampleing')
-    parser.add_argument('--modify', action='store_true', default = False, help='modify an existing view')
+    parser.add_argument('--root', default = os.environ.get('KITTI_ROOT','~/dataset/KITTI/'), type=str)
+    parser.add_argument('--part', default = '00', type=str , help='KITTI part number')
+    parser.add_argument('--index', default = 0, type=int, help='start index')
+    parser.add_argument('--voxel', default = 0.1, type=float, help='voxel size for down sampleing')
+    parser.add_argument('--modify', action = 'store_true', default = False, help='modify an existing view')
     args = parser.parse_args()
 
     assert os.path.exists(args.root),'Root directory does not exist '+ args.root
@@ -31,7 +31,7 @@ def init_params():
     d_range = cfg_data['d_range']
 
     handle = Semantic_KITTI_Utils(root = args.root)
-    handle.start(part = args.part, index = args.index)
+    handle.set_part(part = args.part)
     handle.set_filter(h_fov, v_fov, x_range, y_range, z_range, d_range)
     vis_handle = PointCloud_Vis(args.cfg, new_config = args.modify)
 
@@ -40,12 +40,15 @@ def init_params():
 if __name__ == "__main__":
     args, handle, vis_handle = init_params()
 
-    while handle.next():
+    for index in range(args.index, handle.get_max_index()):
+        # Load image velodyne points and semantic labels
+        handle.load(index)
+
         # Downsample the point cloud and semantic labels as the same time
         pcd,sem_label = handle.extract_points(voxel_size = args.voxel)
         pts_3d = np.asarray(pcd.points).astype(np.float32)
 
-        print(handle.index, 'n_pts',pts_3d.shape[0], 'n_sem',pts_3d.shape[0])
+        print(index,'/',handle.get_max_index(), 'n_pts',pts_3d.shape[0])
 
         # Project in view 3D points to 2D image using RT matrix
         # Filter out the points that are behind us and keeping the labels consistent

@@ -13,7 +13,7 @@ from vis_velo import init_params
 if __name__ == "__main__":
     parser = argparse.ArgumentParser('vis_velo.py')
     parser.add_argument('--cfg', default = 'config/ego_view.json', type=str)
-    parser.add_argument('--root', default='/media/james/MyPassport/James/dataset/KITTI/odometry/dataset/', type=str)
+    parser.add_argument('--root', default = os.environ.get('KITTI_ROOT','~/dataset/KITTI/'), type=str)
     parser.add_argument('--voxel', default=0.1, type=float, help='voxel size for down sampleing')
 
     args = parser.parse_args()
@@ -30,21 +30,23 @@ if __name__ == "__main__":
     d_range = cfg_data['d_range']
 
     handle = Semantic_KITTI_Utils(root = args.root)
-    handle.start(part = '00', index = 0)
+    handle.set_part(part = '00')
     handle.set_filter(h_fov, v_fov, x_range, y_range, z_range, d_range)
 
-    fp = h5py.File('tmp/downsampled_pts.h5',"a")
+    fp = h5py.File('tmp/sem_kitti.h5',"a")
 
     for part in ['00','01','02','03','04','05','06','07','08','09','10']:
         args.part = part
-        handle.start(part,index=0)
+        handle.set_part(part)
 
-        while handle.next():
+        for index in range(0,handle.get_max_index()):
             key_pts = '%s/%06d/pts'%(args.part, handle.index)
             key_sem = '%s/%06d/sem'%(args.part, handle.index)
             if key_pts in fp.keys() or key_sem in fp.keys():
                 print('skip', key_pts, key_sem)
                 continue
+                
+            handle.load(index)
 
             # Downsample the point cloud and semantic labels as the same time
             pcd, sem_label = handle.extract_points(voxel_size = args.voxel)
