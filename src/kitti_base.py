@@ -43,7 +43,7 @@ def calib_cam2cam(fn_c2c, mode = '02'):
 class PointCloud_Vis():
     def __init__(self,cfg, new_config = False, width = 800, height = 800):
         self.vis = open3d.visualization.VisualizerWithKeyCallback()
-        self.vis.create_window(width=width, height=height, left=200)
+        self.vis.create_window(width=width, height=height, left=100)
         self.vis.get_render_option().load_from_json('config/render_option.json')
         self.cfg = cfg
 

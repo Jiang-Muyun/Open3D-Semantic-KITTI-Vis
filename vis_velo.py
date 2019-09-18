@@ -39,6 +39,9 @@ def init_params():
 
 if __name__ == "__main__":
     args, handle, vis_handle = init_params()
+    cv2.namedWindow('depth');cv2.moveWindow("depth", 600,000)
+    cv2.namedWindow('learn_mapping');cv2.moveWindow("learn_mapping", 400,200)
+    cv2.namedWindow('semantic');cv2.moveWindow("semantic", 200,400)
 
     for index in range(args.index, handle.get_max_index()):
         # Load image velodyne points and semantic labels

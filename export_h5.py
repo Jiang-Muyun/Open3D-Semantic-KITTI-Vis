@@ -40,9 +40,9 @@ if __name__ == "__main__":
         handle.set_part(part)
 
         for index in range(0,handle.get_max_index()):
-            key_pts = '%s/%06d/pts'%(args.part, handle.index)
-            key_sem = '%s/%06d/sem'%(args.part, handle.index)
-            if key_pts in fp.keys() or key_sem in fp.keys():
+            key_pts = '%s/%06d/pts'%(args.part, index)
+            key_sem = '%s/%06d/sem'%(args.part, index)
+            if key_pts in fp.keys() and key_sem in fp.keys():
                 print('skip', key_pts, key_sem)
                 continue
                 
