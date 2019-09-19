@@ -44,17 +44,17 @@ if __name__ == "__main__":
     cv2.namedWindow('semantic');cv2.moveWindow("semantic", 200,400)
 
     for index in range(args.index, handle.get_max_index()):
-        # Load image velodyne points and semantic labels
+        # Load image, velodyne points and semantic labels
         handle.load(index)
 
-        # Downsample the point cloud and semantic labels as the same time
+        # Downsample the point cloud and semantic labels at the same time
         pcd,sem_label = handle.extract_points(voxel_size = args.voxel)
         pts_3d = np.asarray(pcd.points).astype(np.float32)
 
         print(index,'/',handle.get_max_index(), 'n_pts',pts_3d.shape[0])
 
-        # Project in view 3D points to 2D image using RT matrix
-        # Filter out the points that are behind us and keeping the labels consistent
+        # Filter out the points that are behind us.
+        # Project in view 3D points to 2D image using RT matrix, and keeping the labels consistent
         pts_2d, color, sem_label = handle.project_3d_to_2d(pcd, sem_label)
 
         # Map the Semantic KITTI labels to KITTI original 19 classes labels
