@@ -14,7 +14,7 @@ from vis_velo import init_params
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser('vis_velo.py')
-    parser.add_argument('--cfg', default = 'config/ego_view.json', type=str)
+    parser.add_argument('--cfg', default = 'config/export_config.json', type=str)
     parser.add_argument('--root', default = os.environ.get('KITTI_ROOT','~/dataset/KITTI/'), type=str)
     parser.add_argument('--voxel', default=0.1, type=float, help='voxel size for down sampleing')
 
@@ -35,7 +35,7 @@ if __name__ == "__main__":
     handle.set_part(part = '00')
     handle.set_filter(h_fov, v_fov, x_range, y_range, z_range, d_range)
 
-    fp = h5py.File('tmp/pts_sem_voxel_0.2.h5',"a")
+    fp = h5py.File('tmp/pts_sem_voxel_%.2f.h5'%(args.voxel),"a")
     parts = ['00','01','02','03','04','05','06','07','08','09','10']
 
     try:
@@ -52,17 +52,16 @@ if __name__ == "__main__":
 
                 # Downsample the point cloud and semantic labels as the same time
                 pcd, sem_label = handle.extract_points(voxel_size = args.voxel)
-                pts_3d = np.asarray(pcd.points).astype(np.float32)
+                pts_4d = handle.pts
 
-                # Map the Semantic KITTI labels to KITTI original 19 classes labels
+                # Map the Semantic KITTI labels to KITTI 19 classes labels
+                # Note: Here the 19 classs are different from the original KITTI 19 classes
                 mapped_label = handle.learning_mapping(sem_label)
-                mapped_label = mapped_label.reshape((-1,1)).astype(np.float32)
+                mapped_label = mapped_label.reshape((-1,1)).astype(np.uint8)
 
-                # Concatenate the labels to the end of pts_3d
-                pts_sem_label = np.concatenate((pts_3d, mapped_label), axis=1)
-
-                fp[key] = pts_sem_label
-                print(index, key, pts_sem_label.shape)
+                fp[key+'/pt'] = pts_4d
+                fp[key+'/label'] = mapped_label
+                print(index, key, pts_4d.shape)
     
     except KeyboardInterrupt:
         print('KeyboardInterrupt')

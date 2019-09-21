@@ -167,7 +167,7 @@ class Semantic_KITTI_Utils():
         self.frame = cv2.imread(fn_frame)
         assert self.frame is not None, 'Broken dataset %s' % (fn_frame)
             
-        self.points = np.fromfile(fn_velo, dtype=np.float32).reshape(-1, 4)[:,:3]
+        self.points = np.fromfile(fn_velo, dtype=np.float32).reshape(-1, 4)
         self.n_pts = self.points.shape[0]
         label = np.fromfile(fn_label, dtype=np.uint32).reshape((-1))
 
@@ -224,7 +224,7 @@ class Semantic_KITTI_Utils():
             2. x,y,z distance limit
             return a bool array
         """
-        assert points.shape[1] == 3, points.shape # [N,3]
+        assert points.shape[1] == 4, points.shape # [N,3]
         x, y, z = points[:, 0], points[:, 1], points[:, 2]
         d = np.sqrt(x ** 2 + y ** 2 + z ** 2) # this is much faster than d = np.sqrt(np.power(points,2).sum(1))
 
@@ -239,27 +239,23 @@ class Semantic_KITTI_Utils():
 
         return combined
 
-    def extract_points(self,voxel_size = -1, every_k_points = 0):
+    def extract_points(self,voxel_size = 0.01):
         # filter in range points based on fov, x,y,z range setting
         combined = self.points_basic_filter(self.points)
-        pts = self.points[combined]
-        sem_label = self.sem_label[combined]
-
-        fake_color = np.repeat(sem_label.reshape((-1,1)),3,axis=1).astype(np.float64)
+        points = self.points[combined]
+        label = self.sem_label[combined]
 
         pcd = open3d.geometry.PointCloud()
-        pcd.points = open3d.utility.Vector3dVector(pts)
-        pcd.colors = open3d.utility.Vector3dVector(fake_color)
+        pcd.points = open3d.utility.Vector3dVector(points[:,:3])
 
-        if voxel_size > 0:
-            # approximate_class must be set to true
-            # see this issue for more info https://github.com/intel-isl/Open3D/issues/1085
-            pcd,trace = pcd.voxel_down_sample_and_trace(voxel_size,self.min_bound,self.max_bound,approximate_class=True)
-        
-        if every_k_points > 0 :
-            pcd = pcd.uniform_down_sample(every_k_points)
+        # approximate_class must be set to true
+        # see this issue for more info https://github.com/intel-isl/Open3D/issues/1085
+        pcd,trace = pcd.voxel_down_sample_and_trace(voxel_size,self.min_bound,self.max_bound,approximate_class=True)
+        to_index_org = np.max(trace, 1)
 
-        sem_label = np.asarray(pcd.colors)[:,0].astype(np.int32)
+        pts = points[to_index_org]
+        sem_label = label[to_index_org]
+        self.pts = pts
         colors = np.array([self.sem_color_map[x] for x in sem_label])
         pcd.colors = open3d.utility.Vector3dVector(colors/255.0)
 
@@ -368,6 +364,30 @@ class Semantic_KITTI_Utils():
         return image
 
     def learning_mapping(self,sem_label):
+        # Note: Here the 19 classs are different from the original KITTI 19 classes
+        num_classes = 20
+        class_names = [
+            'unlabelled',     # 0
+            'car',            # 1
+            'bicycle',        # 2
+            'motorcycle',     # 3
+            'truck',          # 4
+            'other-vehicle',  # 5
+            'person',         # 6
+            'bicyclist',      # 7
+            'motorcyclist',   # 8
+            'road',           # 9
+            'parking',        # 10
+            'sidewalk',       # 11
+            'other-ground',   # 12
+            'building',       # 13
+            'fence',          # 14
+            'vegetation',     # 15
+            'trunk',          # 16
+            'terrain',        # 17
+            'pole',           # 18
+            'traffic-sign'    # 19
+        ]
         sem_label_learn = [self.learning_map[x] for x in sem_label]
         sem_label_learn = np.array(sem_label_learn, dtype=np.uint8)
         return sem_label_learn

@@ -40,14 +40,14 @@
         40
     ],
     "v_fov": [
-        -25,
-        2.0
+        -20,
+        20
     ],
     "x_range": null,
     "y_range": null,
     "z_range": null,
     "d_range": [
         0,
-        50
+        80
     ]
 }
