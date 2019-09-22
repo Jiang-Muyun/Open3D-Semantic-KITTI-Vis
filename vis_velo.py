@@ -54,8 +54,10 @@ if __name__ == "__main__":
         print(index,'/',handle.get_max_index(), 'n_pts',pts_3d.shape[0])
 
         # Filter out the points that are behind us.
+        pts_3d, sem_label = handle.get_in_view_pts(pcd, sem_label)
+
         # Project in view 3D points to 2D image using RT matrix, and keeping the labels consistent
-        pts_2d, color, sem_label = handle.project_3d_to_2d(pcd, sem_label)
+        pts_2d, color = handle.project_3d_to_2d(pts_3d)
 
         # Map the Semantic KITTI labels to KITTI original 19 classes labels
         sem_label_learn_mapping = handle.learning_mapping(sem_label)
@@ -76,10 +78,10 @@ if __name__ == "__main__":
         cv2.imshow('learn_mapping', img_learn_mapping)
 
         # Saving the frames
-        # vis_handle.capture_screen('tmp/top_view.jpg')
-        # cv2.imwrite('tmp/frame_depth.jpg',frame_depth)
-        # cv2.imwrite('tmp/frame_semantic.jpg',frame_semantic)
-        # cv2.imwrite('tmp/learn_mapping.jpg',learn_mapping)
+        vis_handle.capture_screen('tmp/img_3d.png')
+        cv2.imwrite('tmp/img_depth.jpg',img_depth)
+        cv2.imwrite('tmp/img_semantic.jpg',img_semantic)
+        cv2.imwrite('tmp/img_learn_mapping.jpg',img_learn_mapping)
 
         if 32 == cv2.waitKey(1):
             break

@@ -35,7 +35,6 @@ cp config/ego_view.json config/new_view.json
 python vis_velo.py --cfg config/new_view.json --voxel 0.1 --modify
 ```
 
-<img src="assets/ego_view.jpg" width="600">
-<img src="assets/frame_semantic.jpg" width="600">
-<img src="assets/frame_depth.jpg" width="600">
-<img src="assets/top_view.jpg" width="600">
+<img src="assets/img_3d_00.png" width="500">
+<img src="assets/img_semantic.jpg" width="800">
+<img src="assets/img_depth.jpg" width="800" >

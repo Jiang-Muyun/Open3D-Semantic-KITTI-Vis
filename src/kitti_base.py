@@ -261,7 +261,7 @@ class Semantic_KITTI_Utils():
 
         return pcd,sem_label
 
-    def cvt_pcd(self,pcd, sem_label,in_view_constraints=True):
+    def get_in_view_pts(self, pcd, sem_label):
         """ 
             Convert open3d.geometry.PointCloud object to [4, N] array
                         [x_1 , x_2 , .. ]
@@ -272,20 +272,21 @@ class Semantic_KITTI_Utils():
         # The [N,3] downsampled array
         pts_3d = np.asarray(pcd.points)
 
-        if in_view_constraints:
-            h_points = self.hv_in_range(pts_3d[:,0], pts_3d[:,1], [-50,50], fov_type='h')
-            pts_3d = pts_3d[h_points]
-            sem_label = sem_label[h_points]
+        # finter out the points not in view
+        h_points = self.hv_in_range(pts_3d[:,0], pts_3d[:,1], [-50,50], fov_type='h')
+        pts_3d = pts_3d[h_points]
+        sem_label = sem_label[h_points]
+
+        return pts_3d, sem_label
+
+    def project_3d_to_2d(self, pts_3d):
+        assert pts_3d.shape[1] == 3, pts_3d.shape
 
         # Create a [N,1] array
         one_mat = np.ones((pts_3d.shape[0], 1),dtype=np.float64)
-        # Concat and change shape from [N,4] to [4,N]
-        xyz_v = np.concatenate((pts_3d, one_mat), axis=1).T
-        return xyz_v, sem_label
 
-    def project_3d_to_2d(self, pcd, sem_label):
-        # convert open3d.geometry.PointCloud object to [4, N] array
-        xyz_v,sem_label = self.cvt_pcd(pcd,sem_label)
+        # Concat and change shape from [N,3] to [N,4] to [4,N]
+        xyz_v = np.concatenate((pts_3d, one_mat), axis=1).T
 
         assert xyz_v.shape[0] == 4, xyz_v.shape
 
@@ -323,7 +324,7 @@ class Semantic_KITTI_Utils():
         d_normalize = (d - d.min()) / (d.max() - d.min())
         color = [[int(x*255) for x in colorsys.hsv_to_rgb(hue,1,1)] for hue in d_normalize]
 
-        return pts_2d, color, sem_label
+        return pts_2d, color
 
     def draw_2d_points(self, pts_2d, color):
         """ draw 2d points in camera image """
@@ -333,7 +334,7 @@ class Semantic_KITTI_Utils():
         pts_2d = pts_2d.astype(np.int32).tolist()
 
         for (x,y),c in zip(pts_2d,color):
-            cv2.circle(image, (x, y), 2, c, -1)
+            cv2.circle(image, (x, y), 2, [c[2],c[1],c[0]], -1)
             
         return image
 
@@ -347,7 +348,7 @@ class Semantic_KITTI_Utils():
         colors = [self.sem_color_map[x] for x in sem_label.tolist()]
 
         for (x,y),c in zip(pts_2d,colors):
-            cv2.circle(image, (x, y), 2, c, -1)
+            cv2.circle(image, (x, y), 2, [c[2],c[1],c[0]], -1)
         return image
 
     def draw_2d_sem_points_with_learning_mapping(self, pts_2d, sem_label_learn):
@@ -360,7 +361,7 @@ class Semantic_KITTI_Utils():
         colors = [self.kitti_color_map[x] for x in sem_label_learn.tolist()]
 
         for (x,y),c in zip(pts_2d,colors):
-            cv2.circle(image, (x, y), 2, c, -1)
+            cv2.circle(image, (x, y), 2, [c[2],c[1],c[0]], -1)
         return image
 
     def learning_mapping(self,sem_label):
