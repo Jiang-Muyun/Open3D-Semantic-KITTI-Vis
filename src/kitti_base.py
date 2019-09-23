@@ -124,18 +124,9 @@ class Semantic_KITTI_Utils():
         return self.max_index
 
     def init(self):
-        # R_vc = Rotation matrix ( velodyne -> camera )
-        # T_vc = Translation matrix ( velodyne -> camera )
-        self.R_vc, self.T_vc = calib_velo2cam('config/calib_velo_to_cam.txt')
-
-        # P_ = Projection matrix ( camera coordinates 3d points -> image plane 2d points )
-        self.P_ = calib_cam2cam('config/calib_cam_to_cam.txt' ,mode="02")
-
-        # RT_ - rotation matrix & translation matrix ( velodyne coordinates -> camera coordinates )
-        #         [r_11 , r_12 , r_13 , t_x ]
-        # RT_  =  [r_21 , r_22 , r_23 , t_y ]
-        #         [r_31 , r_32 , r_33 , t_z ]
-        self.RT_ = np.concatenate((self.R_vc, self.T_vc), axis=1)
+        self.R, self.T = calib_velo2cam('config/calib_velo_to_cam.txt')
+        self.P = calib_cam2cam('config/calib_cam_to_cam.txt' ,mode="02")
+        self.RT = np.concatenate((self.R, self.T), axis=1)
 
         self.sem_cfg = yaml.load(open('config/semantic-kitti.yaml','r'), Loader=yaml.SafeLoader)
         self.class_names = self.sem_cfg['labels']
@@ -281,49 +272,34 @@ class Semantic_KITTI_Utils():
 
     def project_3d_to_2d(self, pts_3d):
         assert pts_3d.shape[1] == 3, pts_3d.shape
-
+        pts_3d = pts_3d.copy()
+        
         # Create a [N,1] array
-        one_mat = np.ones((pts_3d.shape[0], 1),dtype=np.float64)
+        one_mat = np.ones((pts_3d.shape[0], 1),dtype=np.float32)
 
         # Concat and change shape from [N,3] to [N,4] to [4,N]
         xyz_v = np.concatenate((pts_3d, one_mat), axis=1).T
 
-        assert xyz_v.shape[0] == 4, xyz_v.shape
-
         # convert velodyne coordinates(X_v, Y_v, Z_v) to camera coordinates(X_c, Y_c, Z_c)
         for i in range(xyz_v.shape[1]):
-            xyz_v[:3, i] = np.matmul(self.RT_, xyz_v[:, i])
+            xyz_v[:3, i] = np.matmul(self.RT, xyz_v[:, i])
 
-        """
-        xyz_c - 3D velodyne points corresponding to h, v FOV in the camera coordinates
-                   [x_1 , x_2 , .. ]
-        xyz_c   =  [y_1 , y_2 , .. ]
-                   [z_1 , z_2 , .. ]
-        """
-        xyz_c = np.delete(xyz_v, 3, axis=0)
+        xyz_c = xyz_v[:3]
 
         # convert camera coordinates(X_c, Y_c, Z_c) image(pixel) coordinates(x,y)
         for i in range(xyz_c.shape[1]):
-            xyz_c[:, i] = np.matmul(self.P_, xyz_c[:, i])
+            xyz_c[:, i] = np.matmul(self.P, xyz_c[:, i])
 
-        """
-        xy_i   - 3D velodyne points corresponding to h, v FOV in the image(pixel) coordinates before scale adjustment
-        pts_2d - 3D velodyne points corresponding to h, v FOV in the image(pixel) coordinates
-                    [s_1*x_1 , s_2*x_2 , .. ]
-        xy_i    =   [s_1*y_1 , s_2*y_2 , .. ]     pts_2d =   [x_1 , x_2 , .. ]
-                    [  s_1   ,   s_2   , .. ]                [y_1 , y_2 , .. ]
-        """
-        xy_i = xyz_c[::] / xyz_c[::][2]
-        pts = np.delete(xy_i, 2, axis=0)
-        pts_2d = pts.T
-        assert pts_2d.shape[1] == 2
+        # normalize image(pixel) coordinates(x,y)
+        xy_i = xyz_c / xyz_c[2]
 
-        points = xyz_v[:3].T
-        x, y, z = points[:, 0], points[:, 1], points[:, 2]
-        d = np.sqrt(x ** 2 + y ** 2 + z ** 2)
-        d_normalize = (d - d.min()) / (d.max() - d.min())
-        color = [[int(x*255) for x in colorsys.hsv_to_rgb(hue,1,1)] for hue in d_normalize]
+        # get pixels location
+        pts_2d = xy_i[:2].T
 
+        x, y, z = pts_3d[:, 0], pts_3d[:, 1], pts_3d[:, 2]
+        dist = np.sqrt(x ** 2 + y ** 2 + z ** 2)
+        dist_normalize = (dist - dist.min()) / (dist.max() - dist.min())
+        color = [[int(x*255) for x in colorsys.hsv_to_rgb(hue,1,1)] for hue in dist_normalize]
         return pts_2d, color
 
     def draw_2d_points(self, pts_2d, color):
