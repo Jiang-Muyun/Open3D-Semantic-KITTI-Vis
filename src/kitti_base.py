@@ -71,7 +71,7 @@ class PointCloud_Vis():
         self.vis.remove_geometry(self.pcd)
         self.vis.add_geometry(self.pcd)
         self.vis.get_view_control().convert_from_pinhole_camera_parameters(self.param)
-        self.vis.update_geometry()
+        # self.vis.update_geometry() # bug fix for open3d 0.9.0.0
         self.vis.poll_events()
         self.vis.update_renderer()
 
@@ -241,7 +241,7 @@ class Semantic_KITTI_Utils():
 
         # approximate_class must be set to true
         # see this issue for more info https://github.com/intel-isl/Open3D/issues/1085
-        pcd,trace = pcd.voxel_down_sample_and_trace(voxel_size,self.min_bound,self.max_bound,approximate_class=True)
+        pcd, trace = pcd.voxel_down_sample_and_trace(voxel_size,self.min_bound,self.max_bound,approximate_class=True)
         to_index_org = np.max(trace, 1)
 
         pts = points[to_index_org]

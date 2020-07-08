@@ -11,10 +11,10 @@
 Download Semantic KITTI label file from [http://semantic-kitti.org/assets/data_odometry_labels.zip] and unzip it along with KITTI odometry dataset [http://www.cvlibs.net/datasets/kitti/eval_odometry.php].
 
 ```bash
-conda install -c open3d-admin open3d
-git clone https://github.com/Jiang-Muyun/Open3D-Semantic-KITTI-Vis.git
-cd Open3D-Semantic-KITTI-Vis
-pip install -r requirements.txt
+conda create --name pcd python=3.6
+conda activate pcd
+conda install -c open3d-admin open3d=0.9.0.0
+pip install opencv-python==4.2.0.32 tqdm numpy pillow
 ```
 
 ## Run

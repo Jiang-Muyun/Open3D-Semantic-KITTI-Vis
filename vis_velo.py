@@ -78,10 +78,10 @@ if __name__ == "__main__":
         cv2.imshow('learn_mapping', img_learn_mapping)
 
         # Saving the frames
-        vis_handle.capture_screen('tmp/img_3d.png')
-        cv2.imwrite('tmp/img_depth.jpg',img_depth)
-        cv2.imwrite('tmp/img_semantic.jpg',img_semantic)
-        cv2.imwrite('tmp/img_learn_mapping.jpg',img_learn_mapping)
+        # vis_handle.capture_screen('tmp/img_3d.png')
+        # cv2.imwrite('tmp/img_depth.jpg',img_depth)
+        # cv2.imwrite('tmp/img_semantic.jpg',img_semantic)
+        # cv2.imwrite('tmp/img_learn_mapping.jpg',img_learn_mapping)
 
         if 32 == cv2.waitKey(1):
             break
